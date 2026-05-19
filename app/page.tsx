@@ -4,10 +4,11 @@ import { useState, useEffect } from "react";
 
 export default function InvitePage() {
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
   >("idle");
+  const [isOpened, setIsOpened] = useState(false);
+
   const [particles, setParticles] = useState<
     Array<{
       id: number;
@@ -19,7 +20,19 @@ export default function InvitePage() {
     }>
   >([]);
 
+  const [burstParticles, setBurstParticles] = useState<
+    Array<{
+      id: number;
+      tx: string;
+      ty: string;
+      r: string;
+      color: string;
+    }>
+  >([]);
+
   useEffect(() => {
+    if (!isOpened) return;
+
     const generatedParticles = Array.from({ length: 80 }).map((_, i) => ({
       id: i,
       left: `${Math.random() * 100}%`,
@@ -29,7 +42,19 @@ export default function InvitePage() {
       type: Math.random() > 0.5 ? "circle" : "rect",
     }));
     setParticles(generatedParticles);
-  }, []);
+  }, [isOpened]);
+
+  const handleOpen = () => {
+    const newBurst = Array.from({ length: 70 }).map((_, i) => ({
+      id: i,
+      tx: `${(Math.random() - 0.5) * 800}px`,
+      ty: `${(Math.random() - 0.5) * 800}px`,
+      r: `${Math.random() * 720}deg`,
+      color: Math.random() > 0.5 ? "#D4AF37" : "#FFDF73",
+    }));
+    setBurstParticles(newBurst);
+    setIsOpened(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,13 +64,12 @@ export default function InvitePage() {
       const res = await fetch("/api/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email }),
+        body: JSON.stringify({ name }),
       });
 
       if (res.ok) {
         setStatus("success");
         setName("");
-        setEmail("");
       } else {
         setStatus("error");
       }
@@ -70,13 +94,31 @@ export default function InvitePage() {
           90% { opacity: 1; }
           100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
         }
+
+        @keyframes burst {
+          0% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+          100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0) rotate(var(--r)); opacity: 0; }
+        }
         
         @keyframes glow {
           0%, 100% { text-shadow: 0 0 10px rgba(212,175,55,0.4), 0 0 20px rgba(212,175,55,0.2); }
           50% { text-shadow: 0 0 15px rgba(212,175,55,0.7), 0 0 30px rgba(212,175,55,0.4); }
         }
+
+        @keyframes shimmer-text {
+          0% { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
         
         .gold-glow { animation: glow 3s infinite ease-in-out; }
+        
+        .shimmer {
+          background: linear-gradient(90deg, #D4AF37 0%, #FFF 50%, #D4AF37 100%);
+          background-size: 200% auto;
+          color: transparent;
+          -webkit-background-clip: text;
+          animation: shimmer-text 2.5s linear infinite;
+        }
         
         .particle {
           position: absolute;
@@ -93,11 +135,69 @@ export default function InvitePage() {
             -webkit-box-shadow: 0 0 0 30px black inset !important;
             -webkit-text-fill-color: #D4AF37 !important;
         }
+
+        .envelope-flap {
+          clip-path: polygon(0 0, 50% 50%, 100% 0);
+        }
       `,
         }}
       />
       <main className="min-h-screen bg-[#050505] relative flex items-center justify-center p-4 sm:p-6 overflow-hidden selection:bg-[#D4AF37] selection:text-black">
-        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <div
+          className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-1000 z-50 ${
+            isOpened
+              ? "opacity-0 scale-125 pointer-events-none"
+              : "opacity-100 scale-100"
+          }`}
+        >
+          <div
+            onClick={handleOpen}
+            className="relative w-[320px] h-[220px] bg-[#0a0a0a] border border-[#D4AF37]/40 flex items-center justify-center cursor-pointer hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] transition-all group shadow-2xl"
+          >
+            <div className="absolute top-0 left-0 w-full h-full envelope-flap bg-[#111] border-b border-[#D4AF37]/30 z-10"></div>
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20"></div>
+
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#D4AF37] via-[#FFDF73] to-[#996515] flex items-center justify-center shadow-[0_0_20px_rgba(212,175,55,0.4)] z-20 group-hover:scale-110 transition-transform duration-500">
+              <div className="w-14 h-14 rounded-full border border-black/20 flex items-center justify-center bg-gradient-to-br from-[#D4AF37] to-[#B5912B]">
+                <span className="font-cursive text-black text-4xl mt-2 mr-2">
+                  C
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <p
+            className="mt-12 font-serif uppercase tracking-[0.4em] text-xs shimmer cursor-pointer"
+            onClick={handleOpen}
+          >
+            Clique para abrir
+          </p>
+        </div>
+
+        {isOpened && (
+          <div className="absolute inset-0 pointer-events-none z-40 overflow-hidden">
+            {burstParticles.map((p) => (
+              <div
+                key={`burst-${p.id}`}
+                className="absolute top-1/2 left-1/2 w-[6px] h-[12px]"
+                style={
+                  {
+                    background: p.color,
+                    animation:
+                      "burst 2s cubic-bezier(0.1, 0.8, 0.3, 1) forwards",
+                    "--tx": p.tx,
+                    "--ty": p.ty,
+                    "--r": p.r,
+                  } as React.CSSProperties
+                }
+              />
+            ))}
+          </div>
+        )}
+
+        <div
+          className={`absolute inset-0 pointer-events-none z-0 overflow-hidden transition-opacity duration-1000 ${isOpened ? "opacity-100" : "opacity-0"}`}
+        >
           {particles.map((p) => (
             <div
               key={p.id}
@@ -115,7 +215,9 @@ export default function InvitePage() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#D4AF37] opacity-[0.03] rounded-full blur-[100px]"></div>
         </div>
 
-        <div className="relative z-10 w-full max-w-[420px] rounded-2xl p-8 sm:p-10 border border-[#D4AF37]/20 bg-black/40 backdrop-blur-xl shadow-[0_0_40px_rgba(212,175,55,0.05)] flex flex-col items-center">
+        <div
+          className={`relative z-10 w-full max-w-[420px] rounded-2xl p-8 sm:p-10 border border-[#D4AF37]/20 bg-black/40 backdrop-blur-xl shadow-[0_0_40px_rgba(212,175,55,0.05)] flex flex-col items-center transition-all duration-1000 delay-300 ${isOpened ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-12 scale-95 pointer-events-none"}`}
+        >
           <h1 className="text-[#D4AF37] font-cursive text-7xl sm:text-8xl mt-4 mb-2 tracking-wide gold-glow">
             Cléa
           </h1>
@@ -194,17 +296,6 @@ export default function InvitePage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Seu nome completo"
-                    className="input-gold w-full px-0 py-3 bg-transparent border-b border-[#D4AF37]/30 text-[#D4AF37] placeholder-[#D4AF37]/30 focus:outline-none focus:border-[#D4AF37] transition-colors font-serif text-center text-sm tracking-widest"
-                  />
-                </div>
-                <div className="relative">
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Seu melhor email"
                     className="input-gold w-full px-0 py-3 bg-transparent border-b border-[#D4AF37]/30 text-[#D4AF37] placeholder-[#D4AF37]/30 focus:outline-none focus:border-[#D4AF37] transition-colors font-serif text-center text-sm tracking-widest"
                   />
                 </div>
